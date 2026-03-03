@@ -9,7 +9,7 @@
 
 ## 🌟 Tính Năng Nổi Bật
 
-- **Điều Khiển Hàng Loạt:** Quản lý hàng trăm thiết bị Android qua giao diện C# .NET 8.0 mượt mà.
+- **Điều Khiển Hàng Loạt:** Quản lý hàng trăm thiết bị Android qua giao diện C# .NET 4.8 mượt mà.
 - **Tích Hợp API:** Kết nối trực tiếp với Michanger Pro và OneChanger để đổi thông tin thiết bị (Fingerprint).
 - **Quản Lý SOCKS5:** Cấu hình Proxy riêng biệt cho từng máy hoặc hàng loạt chỉ với một click.
 - **Luồng GeminiPro (Automation):** Kịch bản tự động hóa 4 bước: 
