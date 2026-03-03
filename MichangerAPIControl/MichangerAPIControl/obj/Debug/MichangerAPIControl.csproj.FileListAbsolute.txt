@@ -1,0 +1,9 @@
+D:\lamviec\Project_API_Michanger.io\MichangerAPIControl\MichangerAPIControl\MichangerAPIControl\obj\Debug\MichangerAPIControl.csproj.AssemblyReference.cache
+D:\lamviec\Project_API_Michanger.io\MichangerAPIControl\MichangerAPIControl\MichangerAPIControl\obj\Debug\MichangerAPIControl.Properties.Resources.resources
+D:\lamviec\Project_API_Michanger.io\MichangerAPIControl\MichangerAPIControl\MichangerAPIControl\obj\Debug\MichangerAPIControl.csproj.GenerateResource.cache
+D:\lamviec\Project_API_Michanger.io\MichangerAPIControl\MichangerAPIControl\MichangerAPIControl\obj\Debug\MichangerAPIControl.csproj.CoreCompileInputs.cache
+D:\lamviec\Project_API_Michanger.io\MichangerAPIControl\MichangerAPIControl\MichangerAPIControl\bin\Debug\MichangerAPIControl.exe.config
+D:\lamviec\Project_API_Michanger.io\MichangerAPIControl\MichangerAPIControl\MichangerAPIControl\bin\Debug\MichangerAPIControl.exe
+D:\lamviec\Project_API_Michanger.io\MichangerAPIControl\MichangerAPIControl\MichangerAPIControl\bin\Debug\MichangerAPIControl.pdb
+D:\lamviec\Project_API_Michanger.io\MichangerAPIControl\MichangerAPIControl\MichangerAPIControl\obj\Debug\MichangerAPIControl.exe
+D:\lamviec\Project_API_Michanger.io\MichangerAPIControl\MichangerAPIControl\MichangerAPIControl\obj\Debug\MichangerAPIControl.pdb
