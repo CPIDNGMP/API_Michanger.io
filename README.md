@@ -47,7 +47,7 @@ Bạn có thể tải phiên bản đóng gói sẵn (EXE) tại mục:
 
 ## 🛠 Yêu Cầu Hệ Thống
 - Windows 10/11
-- .NET 8.0 Runtime
+- .NET 4.8 Runtime
 - ADB (Android Debug Bridge) đã được cài đặt và thiết bị đã bật USB Debugging.
 
 ---
