@@ -33,6 +33,7 @@
             this.panelActions = new System.Windows.Forms.Panel();
             this.BtnRandomAndChange = new System.Windows.Forms.Button();
             this.BtnRunGemini = new System.Windows.Forms.Button();
+            this.BtnAdbEditor = new System.Windows.Forms.Button();
             this.BtnGlobalConfigSocks = new System.Windows.Forms.Button();
             this.panelSettings = new System.Windows.Forms.Panel();
             this.lblSettingsTitle = new System.Windows.Forms.Label();
@@ -188,13 +189,26 @@
             this.panelRight.Padding = new System.Windows.Forms.Padding(10);
 
             // panelActions
+            this.panelActions.Controls.Add(this.BtnAdbEditor);
             this.panelActions.Controls.Add(this.BtnRandomAndChange);
             this.panelActions.Controls.Add(this.BtnRunGemini);
             this.panelActions.Controls.Add(this.BtnGlobalConfigSocks);
             this.panelActions.Dock = System.Windows.Forms.DockStyle.Top;
             this.panelActions.Location = new System.Drawing.Point(10, 10);
             this.panelActions.Name = "panelActions";
-            this.panelActions.Size = new System.Drawing.Size(530, 105);
+            this.panelActions.Size = new System.Drawing.Size(530, 150);
+            
+            // BtnAdbEditor
+            this.BtnAdbEditor.BackColor = System.Drawing.Color.FromArgb(50, 55, 75);
+            this.BtnAdbEditor.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.BtnAdbEditor.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.BtnAdbEditor.ForeColor = System.Drawing.Color.Yellow;
+            this.BtnAdbEditor.Location = new System.Drawing.Point(380, 5);
+            this.BtnAdbEditor.Name = "BtnAdbEditor";
+            this.BtnAdbEditor.Size = new System.Drawing.Size(140, 40);
+            this.BtnAdbEditor.Text = "🛠 ADB EDITOR";
+            this.BtnAdbEditor.UseVisualStyleBackColor = false;
+            this.BtnAdbEditor.Click += new System.EventHandler(this.BtnAdbEditor_Click);
             
             // BtnRandomAndChange
             this.BtnRandomAndChange.BackColor = System.Drawing.Color.FromArgb(50, 55, 75);
@@ -386,6 +400,7 @@
         private System.Windows.Forms.Panel panelActions;
         private System.Windows.Forms.Button BtnRandomAndChange;
         private System.Windows.Forms.Button BtnRunGemini;
+        private System.Windows.Forms.Button BtnAdbEditor;
         private System.Windows.Forms.Button BtnGlobalConfigSocks;
 
         private System.Windows.Forms.Panel panelSettings;

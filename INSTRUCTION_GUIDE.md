@@ -8,24 +8,32 @@ MichangerAPIControl\
 │
 ├── src\
 │   ├── ApiClients\
-│   │   ├── BaseApiClient.cs         # Cấu hình HttpClient gốc (Xử lý delay, url-encode, API Timeout 5 phút)
-│   │   ├── MichangerApiClient.cs    # Kế thừa BaseApiClient định nghĩa các endpoints gửi Michanger Pro
-│   │   └── OnechangerApiClient.cs   # Kế thừa BaseApiClient định nghĩa các endpoints gửi OneChanger
+│   │   ├── BaseApiClient.cs         # Cấu hình HttpClient gốc (Delay, url-encode, Timeout 5 phút)
+│   │   ├── MichangerApiClient.cs    # Kế thừa BaseApiClient — endpoints Michanger Pro
+│   │   └── OnechangerApiClient.cs   # Kế thừa BaseApiClient — endpoints OneChanger
+│   │
+│   ├── Automation\
+│   │   ├── Flows\
+│   │   │   ├── IFlow.cs             # Interface chuẩn cho mọi automation flow
+│   │   │   └── FlowRegistry.cs      # Auto-discover flows qua reflection
+│   │   ├── GeminiProFlow.cs         # Flow mẫu tích hợp sẵn (implement IFlow)
+│   │   ├── ADBCommand.cs            # Script engine: Tap, Swipe, ImageMatch, v.v.
+│   │   └── AdbScriptRunner.cs       # Chạy script file .txt line-by-line
 │   │
 │   ├── Core\
-│   │   ├── AdbClient.cs             # Wrapper shell gọi adb.exe (lấy danh sách devices, mở app, chạy lệnh cmd)
-│   │   └── DeviceManager.cs         # Chạy luồng nền cập nhật danh sách máy lên UI một cách an toàn
+│   │   ├── AdbClient.cs             # Wrapper gọi adb.exe (lấy devices, mở app, chạy lệnh)
+│   │   └── DeviceManager.cs         # Cập nhật danh sách máy lên UI an toàn (thread-safe)
 │   │
 │   └── Models\
-│       └── DeviceConfig.cs          # Lưu trữ cấu hình (Filters, Socks5, Wipe Apps) cho từng thiết bị
+│       └── DeviceConfig.cs          # Lưu cấu hình từng thiết bị (Filters, Socks5, Wipe Apps)
 │
 ├── Controls\
-│   └── DeviceControlItem.cs         # UserControl UI: Thẻ Card hiển thị cho 1 thiết bị, bắt sự kiện Click 
+│   └── DeviceControlItem.cs         # UserControl: Card hiển thị 1 thiết bị, bắt sự kiện Click
 │
 ├── Forms\
-│   └── DeviceSettingsForm.cs        # UI Cửa sổ bật lên (Popup) chỉnh Filter Setting cá nhân
+│   └── DeviceSettingsForm.cs        # Popup chỉnh Filter Setting cá nhân từng thiết bị
 │
-└── Form1.cs                         # BỘ NÃO CHÍNH: Nơi nối logic bấm giao diện tới API Client.
+└── Form1.cs                         # Main form: Kết nối UI → FlowRegistry → API Client
 ```
 
 ---

@@ -1,0 +1,37 @@
+# Visual Studio / MSBuild
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.suo
+*.userprefs
+*.pidb
+*.booproj
+
+# Build outputs
+*.exe
+*.dll
+*.pdb
+*.msi
+*.zip
+
+# NuGet
+packages/
+*.nupkg
+project.lock.json
+
+# Settings files (user-specific, may contain private data)
+settings/app.json
+settings/devices.json
+
+# Temp / captures
+Captures/
+tmp_dump.xml
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Build / release artifacts not intended for the repo
+build_log.txt
+MichangerAPIControl_v*.zip

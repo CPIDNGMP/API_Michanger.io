@@ -2,104 +2,148 @@ using System;
 using System.Drawing;
 using System.Threading.Tasks;
 using MichangerAPIControl.ApiClients;
+using MichangerAPIControl.Automation.Flows;
 using MichangerAPIControl.Core;
 using MichangerAPIControl.Models;
 
 namespace MichangerAPIControl.Automation
 {
     /// <summary>
-    /// Defines automated multi-step flows representing complex business logic.
-    /// Định nghĩa các kịch bản tự động hóa gồm nhiều bước đại diện cho logic nghiệp vụ.
+    /// Built-in automation flow: GeminiPro sequence.
+    ///
+    /// Steps executed per device:
+    ///   [Step 0 - Optional] Wipe target app data (if Wipe = "True" in device settings)
+    ///   [Step 1] Change device fingerprint using the active API (Michanger / OneChanger)
+    ///            — Brand and Model are read from DeviceConfig (per-device) or global settings.
+    ///   [Step 2] Set SOCKS5 proxy (if configured for this device)
+    ///   [Step 3] Launch the target app
+    ///
+    /// To create your own custom flow, implement <see cref="IFlow"/>.
+    /// Luong GeminiPro tich hop san. De tao flow tuy chinh, implement IFlow.
     /// </summary>
-    public static class GeminiProFlow
+    public class GeminiProFlow : IFlow
     {
+        // --- IFlow ---
+        public string Name => "GeminiPro Flow";
+
+        public async Task ExecuteAsync(
+            BaseApiClient apiClient,
+            string serial,
+            Action<string> log,
+            Action<string, Color> updateStatus)
+        {
+            await RunAsync(apiClient, serial, log, updateStatus);
+        }
+
+        // --- Static helper kept for internal usages and backwards compatibility ---
+
         /// <summary>
-        /// Executes the GeminiPro sequence on a specific device using the chosen API Tool.
-        /// Thực thi quy trình GeminiPro trên thiết bị bằng API Tool đã chọn.
+        /// Executes the GeminiPro sequence on a specific device.
+        /// Thuc thi quy trinh GeminiPro tren thiet bi bang API Tool da chon.
         /// </summary>
-        /// <param name="apiClient">MichangerApiClient or OnechangerApiClient / Client API đang dùng</param>
-        /// <param name="serial">Target device serial / Số serial thiết bị</param>
-        /// <param name="logAction">Callback to print logs / Hàm gọi lại để in log</param>
-        /// <param name="updateStatus">Callback to update UI status label and color / Cập nhật UI</param>
-        public static async Task ExecuteAsync(BaseApiClient apiClient, string serial, Action<string> logAction, Action<string, Color> updateStatus)
+        public static async Task RunAsync(
+            BaseApiClient apiClient,
+            string serial,
+            Action<string> log,
+            Action<string, Color> updateStatus)
         {
             try
             {
-                logAction($"[GeminiPro] Starting flow for device / Bắt đầu luồng cho thiết bị: {serial}");
+                log($"[GeminiPro] Starting flow for device: {serial}");
 
                 var config = DeviceConfigManager.GetConfig(serial);
-                string targetApp = string.IsNullOrWhiteSpace(config.AppWipe) ? "com.google.android.youtube" : config.AppWipe;
-                targetApp = targetApp.Replace("package:", "").Trim(); // Fix user input if they copied "package:" from ADB
 
-                // Step 0: Xử lý App Wipe TRƯỚC khi đổi thông tin máy
+                // Resolve target app (fall back to YouTube if not set)
+                string targetApp = string.IsNullOrWhiteSpace(config.AppWipe)
+                    ? "com.google.android.youtube"
+                    : config.AppWipe.Replace("package:", "").Trim();
+
+                // ── Step 0: Wipe app data (optional, before changing device info) ──────────
                 if (config.Wipe == "True")
                 {
-                    string msgStep0 = $"Step 0: Wiping data for app: {targetApp}...";
-                    updateStatus(msgStep0, Color.Orange);
-                    logAction($"[GeminiPro] {msgStep0}");
-                    
+                    string msg0 = $"Step 0: Wiping data for app: {targetApp}...";
+                    updateStatus(msg0, Color.Orange);
+                    log($"[GeminiPro] {msg0}");
+
                     await AdbClient.ClearAppAsync(serial, targetApp);
                     await Task.Delay(1000);
-                    logAction($"[GeminiPro] Step 0 Success.");
+                    log("[GeminiPro] Step 0 Success.");
                 }
 
-                // Step 1: Change Device to Google Pixel 10 Pro
-                string msgStep1 = "Step 1: Changing Device Info (Google Pixel 10 Pro)...";
-                updateStatus(msgStep1, Color.Orange);
-                logAction($"[GeminiPro] {msgStep1}");
-                
+                // ── Step 1: Change device fingerprint ────────────────────────────────────
+                // Reads Brand/Model from per-device config. Falls back to global defaults.
+                string brand   = !string.IsNullOrWhiteSpace(config.FilterBrand)   ? config.FilterBrand   : "google";
+                string model   = !string.IsNullOrWhiteSpace(config.FilterModel)   ? config.FilterModel   : "Pixel 10 Pro";
+                string os      = config.FilterOs;
+                string country = config.FilterCountry;
+                string carrier = config.FilterCarrier;
+
+                string msg1 = $"Step 1: Changing device info ({brand} {model})...";
+                updateStatus(msg1, Color.Orange);
+                log($"[GeminiPro] {msg1}");
+
                 if (apiClient is MichangerApiClient mc)
                 {
-                    await mc.ChangeDeviceAsync(serial, filterBrand: "google", filterModel: "Pixel 10 Pro");
+                    await mc.ChangeDeviceAsync(
+                        serial,
+                        filterBrand:   brand,
+                        filterModel:   model,
+                        filterOs:      string.IsNullOrWhiteSpace(os)      ? null : os,
+                        filterCountry: string.IsNullOrWhiteSpace(country) ? null : country,
+                        filterCarrier: string.IsNullOrWhiteSpace(carrier) ? null : carrier);
                 }
                 else if (apiClient is OnechangerApiClient oc)
                 {
-                    await oc.ChangeDeviceAsync(serial, filterBrand: "google", filterModel: "Pixel 10 Pro");
+                    await oc.ChangeDeviceAsync(
+                        serial,
+                        filterBrand:   brand,
+                        filterModel:   model,
+                        filterOs:      string.IsNullOrWhiteSpace(os)      ? null : os,
+                        filterCountry: string.IsNullOrWhiteSpace(country) ? null : country,
+                        filterCarrier: string.IsNullOrWhiteSpace(carrier) ? null : carrier);
                 }
-                await Task.Delay(1500); // Give Michanger/OneChanger time to restart services
-                logAction($"[GeminiPro] Step 1 Success.");
 
-                // Step 2: Set SOCKS5 (No location change)
+                // Allow Michanger / OneChanger time to restart services
+                await Task.Delay(1500);
+                log("[GeminiPro] Step 1 Success.");
+
+                // ── Step 2: Set SOCKS5 proxy ─────────────────────────────────────────────
                 string socksConfig = config.GetSocksString();
 
                 if (string.IsNullOrEmpty(socksConfig))
                 {
-                    logAction($"[GeminiPro] WARNING: No SOCKS5 config found for {serial}. Proceeding without proxy.");
+                    log($"[GeminiPro] WARNING: No SOCKS5 config on {serial}. Proceeding without proxy.");
                 }
                 else
                 {
-                    string msgStep2 = $"Step 2: Setting Proxy...";
-                    updateStatus(msgStep2, Color.Orange);
-                    logAction($"[GeminiPro] Step 2: Extracting SOCKS5 config for {serial}...");
-                    logAction($"[GeminiPro] Setting proxy / Đang thiết lập proxy: {socksConfig}");
-                    
+                    string msg2 = "Step 2: Setting Proxy...";
+                    updateStatus(msg2, Color.Orange);
+                    log($"[GeminiPro] Step 2: Setting proxy: {socksConfig}");
+
                     if (apiClient is MichangerApiClient mcProxy)
-                    {
                         await mcProxy.SetSocksAsync(serial, socksConfig);
-                    }
                     else if (apiClient is OnechangerApiClient ocProxy)
-                    {
                         await ocProxy.ConfigSockAsync(serial, socksConfig, changeLocation: "false");
-                    }
+
                     await Task.Delay(1000);
-                    logAction($"[GeminiPro] Step 2 Success.");
+                    log("[GeminiPro] Step 2 Success.");
                 }
 
-                // Step 3: Launch Target App SAU KHI Set IP
-                string msgStep3 = $"Step 3: Launching App...";
-                updateStatus(msgStep3, Color.Orange);
-                logAction($"[GeminiPro] Step 3: Launching target app: {targetApp}...");
-                
+                // ── Step 3: Launch target app ────────────────────────────────────────────
+                string msg3 = $"Step 3: Launching App ({targetApp})...";
+                updateStatus(msg3, Color.Orange);
+                log($"[GeminiPro] {msg3}");
+
                 await AdbClient.OpenAppAsync(serial, targetApp);
-                logAction($"[GeminiPro] Step 3 Success.");
-                
+                log("[GeminiPro] Step 3 Success.");
+
                 updateStatus("Completed", Color.LightGreen);
-                logAction($"[GeminiPro] FLOW COMPLETED for {serial}. / KỊCH BẢN HOÀN TẤT cho {serial}.");
+                log($"[GeminiPro] FLOW COMPLETED for {serial}.");
             }
             catch (Exception ex)
             {
                 updateStatus("Failed", Color.Red);
-                logAction($"[GeminiPro] ERROR on {serial}: {ex.Message} / LỖI trên thiêt bị {serial}");
+                log($"[GeminiPro] ERROR on {serial}: {ex.Message}");
             }
         }
     }

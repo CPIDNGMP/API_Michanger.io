@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace MichangerAPIControl.Core
@@ -44,9 +45,8 @@ namespace MichangerAPIControl.Core
         /// <param name="url">The URL to open / Đường dẫn cần mở</param>
         public static async Task OpenBrowserUrlAsync(string serial, string url)
         {
-            // adb -s <serial> shell am start -a android.intent.action.VIEW -d "<url>"
-            var safeUrl = url.Replace("&", "\\&"); // Escape characters for shell / Khử ký tự đặc biệt cho shell
-            await ExecuteCommandAsync($"-s {serial} shell am start -a android.intent.action.VIEW -d \"{safeUrl}\"");
+            var safeUrl = url.Replace("&", "\\&"); 
+            await ExecuteShellAsync(serial, $"am start -a android.intent.action.VIEW -d \"{safeUrl}\"");
         }
 
         /// <summary>
@@ -75,9 +75,51 @@ namespace MichangerAPIControl.Core
         /// </summary>
         public static async Task RemoveGoogleAccountsAsync(string serial)
         {
-            // This is the fastest standard ADB method to detach assigned accounts without Root
-            await ExecuteCommandAsync($"-s {serial} shell pm clear com.google.android.gms");
-            await ExecuteCommandAsync($"-s {serial} shell pm clear com.google.android.gsf");
+            await ExecuteShellAsync(serial, "pm clear com.google.android.gms");
+            await ExecuteShellAsync(serial, "pm clear com.google.android.gsf");
+        }
+
+        /// <summary>
+        /// Executes a shell command on the device.
+        /// Thực thi một lệnh shell trên thiết bị.
+        /// </summary>
+        public static async Task<string> ExecuteShellAsync(string serial, string command)
+        {
+            return await ExecuteCommandAsync($"-s {serial} shell \"{command}\"");
+        }
+
+        /// <summary>
+        /// Dumps the UI hierarchy to an XML string.
+        /// Lấy toàn bộ cấu trúc UI của màn hình hiện tại dưới dạng XML.
+        /// </summary>
+        public static async Task<string> DumpUIAsync(string serial)
+        {
+            try
+            {
+                // Dump to a temporary file on device
+                string dumpPath = "/sdcard/view_dump.xml";
+                await ExecuteShellAsync(serial, $"uiautomator dump {dumpPath}");
+                
+                // Pull the file content using pull command instead of cat (more robust for binary/large text)
+                string localDump = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tmp_dump.xml");
+                await ExecuteCommandAsync($"-s {serial} pull {dumpPath} \"{localDump}\"");
+                
+                string content = "";
+                if (System.IO.File.Exists(localDump))
+                {
+                    content = System.IO.File.ReadAllText(localDump);
+                    System.IO.File.Delete(localDump);
+                }
+                
+                // Clean up device file
+                await ExecuteShellAsync(serial, $"rm {dumpPath}");
+                
+                return content;
+            }
+            catch (Exception ex)
+            {
+                return $"Error dumping UI: {ex.Message}";
+            }
         }
 
         /// <summary>
@@ -86,44 +128,56 @@ namespace MichangerAPIControl.Core
         /// </summary>
         /// <param name="arguments">The arguments passed to adb.exe / Tham số truyền cho adb.exe</param>
         /// <returns>Command output as string / Kết quả dạng chuỗi</returns>
-        public static Task<string> ExecuteCommandAsync(string arguments)
+        public static async Task<string> ExecuteCommandAsync(string arguments)
         {
-            var tcs = new TaskCompletionSource<string>();
-
-            // Khởi tạo process ẩn / Initialize a hidden process
-            var process = new Process
+            return await Task.Run(() =>
             {
-                StartInfo = new ProcessStartInfo
+                var tcs = new TaskCompletionSource<string>();
+                var process = new Process
                 {
-                    FileName = "adb",
-                    Arguments = arguments,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                },
-                EnableRaisingEvents = true
-            };
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "adb",
+                        Arguments = arguments,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    }
+                };
 
-            process.Exited += (sender, args) =>
-            {
-                var output = process.StandardOutput.ReadToEnd();
-                var error = process.StandardError.ReadToEnd();
-                
-                if (process.ExitCode != 0 && string.IsNullOrWhiteSpace(output))
+                try
                 {
-                    tcs.SetException(new Exception($"ADB Error ({process.ExitCode}): {error}"));
+                    process.Start();
+                    // Read streams concurrently to avoid deadlocks
+                    var outputTask = process.StandardOutput.ReadToEndAsync();
+                    var errorTask = process.StandardError.ReadToEndAsync();
+
+                    bool exited = process.WaitForExit(30000); // 30s timeout
+                    if (!exited)
+                    {
+                        try { process.Kill(); } catch { }
+                        return "Error: ADB Command Timeout";
+                    }
+
+                    string output = outputTask.Result;
+                    string error = errorTask.Result;
+
+                    if (process.ExitCode != 0 && string.IsNullOrWhiteSpace(output))
+                    {
+                        return $"Error: {error}";
+                    }
+                    return output;
                 }
-                else
+                catch (Exception ex)
                 {
-                    tcs.SetResult(output);
+                    return "Error: " + ex.Message;
                 }
-                process.Dispose();
-            };
-
-            process.Start();
-
-            return tcs.Task;
+                finally
+                {
+                    process.Dispose();
+                }
+            });
         }
     }
 }

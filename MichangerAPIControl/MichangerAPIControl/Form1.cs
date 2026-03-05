@@ -3,14 +3,16 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Threading.Tasks;
+using System.Linq;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
 using MichangerAPIControl.ApiClients;
-using MichangerAPIControl.Core;
-using MichangerAPIControl.Models;
-using MichangerAPIControl.Controls;
 using MichangerAPIControl.Automation;
+using MichangerAPIControl.Automation.Flows;
+using MichangerAPIControl.Controls;
+using MichangerAPIControl.Core;
 using MichangerAPIControl.Forms;
+using MichangerAPIControl.Models;
 
 namespace MichangerAPIControl
 {
@@ -256,7 +258,7 @@ namespace MichangerAPIControl
                             }
                             else if (actionName == "Run GeminiPro Flow")
                             {
-                                await GeminiProFlow.ExecuteAsync(apiClient, serial, LogMessage, (msg, color) => 
+                                await GeminiProFlow.RunAsync(apiClient, serial, LogMessage, (msg, color) => 
                                 {
                                     this.Invoke(new Action(() => item.UpdateActionStatus(msg, color)));
                                 });
@@ -308,8 +310,82 @@ namespace MichangerAPIControl
         }
 
         private void BtnRandomAndChange_Click(object sender, EventArgs e) => ExecuteActionOnSelectedDevices("Random & Change");
-        private void BtnRunGemini_Click(object sender, EventArgs e) => ExecuteActionOnSelectedDevices("Run GeminiPro Flow");
+        private void BtnRunGemini_Click(object sender, EventArgs e)
+        {
+            // Discover and run the GeminiPro flow via the registry
+            var flow = FlowRegistry.GetAll().FirstOrDefault(f => f.Name == "GeminiPro Flow");
+            if (flow != null)
+                ExecuteFlowOnSelectedDevices(flow);
+            else
+                ExecuteActionOnSelectedDevices("Run GeminiPro Flow"); // fallback
+        }
         private void BtnGlobalConfigSocks_Click(object sender, EventArgs e) => ExecuteActionOnSelectedDevices("Config Socks5");
+        private void BtnAdbEditor_Click(object sender, EventArgs e)
+        {
+            string firstSelectedSerial = null;
+            foreach (Control ctrl in pnlDeviceList.Controls)
+            {
+                if (ctrl is DeviceControlItem item && item.IsSelected)
+                {
+                    firstSelectedSerial = item.GetConfig()?.SerialNumber;
+                    break;
+                }
+            }
+
+            var editor = new Forms.AdbAutomationEditorForm(firstSelectedSerial);
+            editor.Show();
+        }
+
+        /// <summary>
+        /// Runs an IFlow instance on all selected devices in parallel.
+        /// Chay mot IFlow tren tat ca thiet bi da chon song song.
+        /// </summary>
+        private async void ExecuteFlowOnSelectedDevices(IFlow flow)
+        {
+            var apiClient = GetActiveApiClient();
+            var tasks = new List<Task>();
+
+            foreach (Control ctrl in pnlDeviceList.Controls)
+            {
+                if (ctrl is DeviceControlItem item && item.IsSelected)
+                {
+                    var serial = item.GetConfig().SerialNumber;
+                    item.ToggleActionButtons(false);
+                    item.UpdateActionStatus($"Running {flow.Name}...", Color.Orange);
+
+                    tasks.Add(Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await flow.ExecuteAsync(apiClient, serial, LogMessage, (msg, color) =>
+                            {
+                                this.Invoke(new Action(() => item.UpdateActionStatus(msg, color)));
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            item.UpdateActionStatus("Failed", Color.Red);
+                            LogMessage($"[Error] {serial}: {ex.Message}");
+                        }
+                        finally
+                        {
+                            item.ToggleActionButtons(true);
+                        }
+                    }));
+                }
+            }
+
+            if (tasks.Count == 0)
+            {
+                MessageBox.Show("Vui long chon it nhat mot thiet bi / Please select at least one device.",
+                    "Notice", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            LogMessage($"Started '{flow.Name}' on {tasks.Count} device(s).");
+            await Task.WhenAll(tasks);
+            LogMessage($"Completed '{flow.Name}' on all selected devices.");
+        }
 
         // --- INDIVIDUAL ACTIONS ---
         private async void DeviceItem_ActionClicked(object sender, DeviceControlItem.DeviceActionEventArgs e)
@@ -332,7 +408,7 @@ namespace MichangerAPIControl
                 }
                 else if (e.ActionName == "Run GeminiPro Flow")
                 {
-                    await GeminiProFlow.ExecuteAsync(apiClient, serial, LogMessage, (msg, color) => 
+                    await GeminiProFlow.RunAsync(apiClient, serial, LogMessage, (msg, color) => 
                     {
                         this.Invoke(new Action(() => item.UpdateActionStatus(msg, color)));
                     });
